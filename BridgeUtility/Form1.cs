@@ -21,6 +21,7 @@ using System.Xml.Linq;
 using System.Xml.Serialization;
 using System.Xml.Xsl;
 using BridgeUtility.Properties;
+using Flurl;
 using Table = BridgeUtility.Entity.Table;
 
 namespace BridgeUtility
@@ -30,6 +31,10 @@ namespace BridgeUtility
         public const string BoardUrl = "http://www.zgqpw.com.cn/Tour/Board.aspx?tourid=6175&sectionID=2fe5785d-1615-4b29-bff4-12ebd38f9e0c&round=1&stanza=0&board=2";
 
         public const string TopPrefix = "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">";
+
+        private static string DomainName = "http://www.ccba.org.cn/Tour/";
+
+        //http://www.ccba.org.cn/Tour/TourResultText.aspx?tourid=9159
 
         private string alertMsg = "正在读取数据：{0}/{1} 节，{2}/{3} 副";
         private int sectionNo = 0;
@@ -124,7 +129,7 @@ namespace BridgeUtility
                 GenWord();
             }
 
-
+            label1.Text = @"^_^";
 
             button1.Enabled = true;
 
@@ -197,17 +202,17 @@ namespace BridgeUtility
             hDoc.LoadHtml(roundData);
             round.RoundNo = hDoc.DocumentNode.SelectSingleNode("//span[@id='lRound']").InnerText;
             //if xxxx judge the player
-            var teamDivs = hDoc.DocumentNode.SelectNodes("//div[@class='td_first_half' or @class='td_latter_half']");
+            var teamDivs = getNodesOfTeams(hDoc);
             var sectionName = hDoc.DocumentNode.SelectSingleNode("//span[@id='lSectionName']").InnerText;
             if (teamDivs == null || !teamDivs.Any() || !teamDivs.Any(p => p.InnerText.Contains(team)))
             {
-                Log(sectionName + round.RoundNo + "未找到所需队伍信息，跳过");
+                Log(sectionName + round.RoundNo + "未找到" + team);
                 return null;
             }
             else
             {
                 var a = teamDivs.First(p => p.InnerText.Contains(team));
-                Log(sectionName + "找到目标队伍：" + a.InnerText.Replace("\r", "").Replace("\n", "").Trim() + "，进入并根据队员抓取表单信息");
+                Log(sectionName + round.RoundNo + "找到目标队伍，表单信息抓取中...");
             }
             var urls = GetUrl(roundData);
             var boardUrls = urls.FindAll(p => p.Key.Contains("Board.aspx?"));
@@ -304,9 +309,9 @@ namespace BridgeUtility
 
             }
 
-            //cir the tables and find out guys in our team
+            //loop the tables and find out guys in our team
             //bi must has two tables?
-            if (bi.Table.Count==2)
+            if (bi.Table.Count == 2)
             {
                 bi.Nplayer = bi.Table.Single(p => teamMembers.Contains(p.NPlayer)).NPlayer;
                 bi.Wplayer = bi.Table.Single(p => teamMembers.Contains(p.WPlayer)).WPlayer;
@@ -416,7 +421,7 @@ namespace BridgeUtility
         {
             if (!url.StartsWith("Http", true, CultureInfo.CurrentCulture))
             {
-                url = "http://www.ccba.org.cn/Tour/" + url;
+                url = Url.Combine(DomainName, url);
             }
             return url;
         }
@@ -494,7 +499,7 @@ namespace BridgeUtility
             this.Enabled = true;
             //拿到增加的Team并重新加载
             var teamForm = s as TeamForm;
-            if (teamForm.DialogResult==DialogResult.Cancel)
+            if (teamForm.DialogResult == DialogResult.Cancel)
             {
                 return;
             }
@@ -550,6 +555,13 @@ namespace BridgeUtility
         private bool CheckCBChecked()
         {
             return comboBox1.SelectedIndex > -1;
+        }
+
+
+        private HtmlNodeCollection getNodesOfTeams(HtmlAgilityPack.HtmlDocument doc)
+        {
+            //for compatibility of RoundResultKnockout.aspx page
+            return doc.DocumentNode.SelectNodes("//table[@class='resultTable']//*");
         }
     }
 }
